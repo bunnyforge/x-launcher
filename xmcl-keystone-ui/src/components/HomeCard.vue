@@ -56,8 +56,8 @@
           class="mt-4"
         >
           <v-avatar
-            v-for="a of icons"
-            :key="a.name"
+            v-for="(a, index) of icons"
+            :key="a.name || `icon-${index}`"
             v-shared-tooltip="a.name"
             :color="a.color ? a.color : !a.icon ? getColor(a.name) : undefined"
             size="30px"
