@@ -134,20 +134,95 @@
         </v-btn>
       </div>
 
-      <!-- Loading State -->
+      <!-- Loading State - Skeleton -->
       <div
         v-else
-        class="flex h-[60vh] flex-col items-center justify-center"
+        class="flex flex-col gap-8"
       >
-        <v-progress-circular
-          indeterminate
-          color="primary"
-          size="64"
-          width="6"
-        />
-        <p class="mt-4 animate-pulse text-lg font-medium text-gray-500">
-          {{ t('loading') }}
-        </p>
+        <!-- Skeleton Region -->
+        <div
+          v-for="i in 2"
+          :key="i"
+          class="animate-fade-in"
+        >
+          <!-- Skeleton Region Header -->
+          <div class="mb-4 flex items-center gap-3">
+            <div class="h-5 w-5 animate-pulse rounded bg-gray-700" />
+            <div class="h-6 w-32 animate-pulse rounded bg-gray-700" />
+            <div class="h-5 w-8 animate-pulse rounded-full bg-gray-700" />
+            <div class="h-px flex-grow bg-gray-800" />
+          </div>
+
+          <!-- Skeleton Server Grid -->
+          <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div
+              v-for="j in 4"
+              :key="j"
+              class="skeleton-card rounded-lg border border-gray-800 bg-gray-900/50 p-4"
+              :style="{ animationDelay: `${(i - 1) * 200 + j * 100}ms` }"
+            >
+              <!-- Skeleton Header -->
+              <div class="mb-3 flex items-start justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="h-12 w-12 animate-pulse rounded-full bg-gray-700" />
+                  <div class="flex flex-col gap-2">
+                    <div class="h-5 w-28 animate-pulse rounded bg-gray-700" />
+                    <div class="flex gap-2">
+                      <div class="h-4 w-16 animate-pulse rounded bg-gray-700" />
+                      <div class="h-4 w-12 animate-pulse rounded bg-gray-700" />
+                    </div>
+                  </div>
+                </div>
+                <div class="h-6 w-16 animate-pulse rounded-full bg-gray-700" />
+              </div>
+
+              <div class="my-3 h-px bg-gray-800" />
+
+              <!-- Skeleton Metrics -->
+              <div class="flex flex-col gap-3">
+                <div>
+                  <div class="mb-1 flex justify-between">
+                    <div class="h-3 w-16 animate-pulse rounded bg-gray-700" />
+                    <div class="h-3 w-12 animate-pulse rounded bg-gray-700" />
+                  </div>
+                  <div class="h-1.5 w-full animate-pulse rounded bg-gray-700" />
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div class="rounded bg-gray-800 p-2">
+                    <div class="mb-1 flex justify-between">
+                      <div class="h-3 w-8 animate-pulse rounded bg-gray-700" />
+                      <div class="h-3 w-10 animate-pulse rounded bg-gray-700" />
+                    </div>
+                    <div class="h-1 w-full animate-pulse rounded bg-gray-700" />
+                  </div>
+                  <div class="rounded bg-gray-800 p-2">
+                    <div class="mb-1 flex justify-between">
+                      <div class="h-3 w-8 animate-pulse rounded bg-gray-700" />
+                      <div class="h-3 w-10 animate-pulse rounded bg-gray-700" />
+                    </div>
+                    <div class="h-1 w-full animate-pulse rounded bg-gray-700" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Skeleton Button -->
+              <div class="mt-4 h-9 w-full animate-pulse rounded bg-gray-700" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Loading indicator -->
+        <div class="flex items-center justify-center gap-3 py-4">
+          <div class="loading-dot h-2 w-2 rounded-full bg-primary" />
+          <div
+            class="loading-dot h-2 w-2 rounded-full bg-primary"
+            style="animation-delay: 0.2s"
+          />
+          <div
+            class="loading-dot h-2 w-2 rounded-full bg-primary"
+            style="animation-delay: 0.4s"
+          />
+        </div>
       </div>
     </div>
 
@@ -225,6 +300,60 @@ async function onConnectClick(region: GameRegion, server: any) {
 <style scoped>
 .game-servers-page {
   background: transparent;
+}
+
+/* Skeleton Card Animation */
+.skeleton-card {
+  animation: skeleton-fade-in 0.5s ease-out forwards;
+  opacity: 0;
+}
+
+@keyframes skeleton-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Loading Dots Animation */
+.loading-dot {
+  animation: loading-bounce 1.4s ease-in-out infinite;
+}
+
+@keyframes loading-bounce {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Shimmer Effect for Skeleton */
+.animate-pulse {
+  animation: shimmer 2s ease-in-out infinite;
+  background: linear-gradient(
+    90deg,
+    rgba(55, 65, 81, 0.5) 0%,
+    rgba(75, 85, 99, 0.8) 50%,
+    rgba(55, 65, 81, 0.5) 100%
+  );
+  background-size: 200% 100%;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 /* Custom Scrollbar */

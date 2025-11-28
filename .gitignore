@@ -14,6 +14,9 @@ thumbs.db
 xmcl-electron-app/build/appx
 .env
 
+# Game Server Config (contains sensitive token)
+xmcl-runtime/gameServerList/config.ts
+
 p2p.network
 
 */build/output/*

@@ -3,10 +3,11 @@ import { LauncherApp } from '../app/LauncherApp'
 import { LauncherAppKey, Inject } from '~/app'
 import { AbstractService, ExposeServiceKey } from '~/service'
 import { request } from 'undici'
+import { GAME_SERVER_CONFIG } from './config'
 
 @ExposeServiceKey(GameServerListServiceKey)
 export class GameServerListService extends AbstractService implements IGameServerListService {
-  private apiUrl = 'https://gamesmanager.rabbitvps.com/api/launcher/data'
+  private apiUrl = GAME_SERVER_CONFIG.apiUrl
 
   constructor(@Inject(LauncherAppKey) app: LauncherApp) {
     super(app)
@@ -19,7 +20,7 @@ export class GameServerListService extends AbstractService implements IGameServe
         method: 'GET',
         headers: {
           'accept': '*/*',
-          'x-mc-launcher-token': process.env.X_MC_LAUNCHER_TOKEN || '',
+          'x-mc-launcher-token': GAME_SERVER_CONFIG.token,
         },
       })
 
