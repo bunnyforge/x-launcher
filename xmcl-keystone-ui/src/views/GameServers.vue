@@ -287,35 +287,9 @@ async function onConnectClick(region: GameRegion, server: GameServer) {
     const [hostname, port] = host.split(':')
     const portNum = parseInt(port, 10)
     
-    // 如果服务器有 modrinthModpack，优先安装整合包
-    if (server.modrinthModpack) {
-      console.log('[GameServer] Server has modrinthModpack:', server.modrinthModpack)
-      
-      // 安装整合包会自动创建实例、选择实例、跳转到主页
-      const instancePath = await installServerModpack(
-        server.modrinthModpack,
-        hostname,
-        portNum
-      )
-      
-      if (instancePath) {
-        snackbarText.value = `${t('gameServer.connected')}: ${server.name} (${host})`
-        snackbar.value = true
-        console.log('[GameServer] Modpack installed, instance:', instancePath)
-      } else {
-        throw new Error('Failed to install modpack')
-      }
-      return
-    }
-    
     // 生成服务器实例的唯一 ID
     const serverInstanceId = generateServerInstanceId(region, server)
     console.log('[GameServer] Server instance ID:', serverInstanceId)
-    
-    // 构建 runtime 配置（只设置 Minecraft 版本）
-    const runtimeConfig: any = {
-      minecraft: server.version,
-    }
     
     // 查找是否已存在该服务器的实例（通过实例文件夹名称匹配）
     const existingInstance = instances.value.find(inst => inst.path.endsWith(serverInstanceId))
@@ -332,11 +306,42 @@ async function onConnectClick(region: GameRegion, server: GameServer) {
           host: hostname,
           port: portNum,
         },
-        runtime: runtimeConfig,
       })
       console.log('[GameServer] Updated existing instance:', instancePath)
+      
+      // 切换到该实例
+      selectedInstance.value = instancePath
+      
+      snackbarText.value = `${t('gameServer.connected')}: ${server.name} (${host})`
+      snackbar.value = true
+      
+      // 跳转到主页
+      router.push('/')
+    } else if (server.modrinthModpack) {
+      // 不存在且有整合包，安装整合包
+      console.log('[GameServer] Server has modrinthModpack:', server.modrinthModpack)
+      
+      instancePath = await installServerModpack(
+        server.modrinthModpack,
+        serverInstanceId,  // 使用服务器唯一 ID 作为目录名
+        server.name,       // 使用服务器名称作为显示名称
+        hostname,
+        portNum
+      ) || ''
+      
+      if (instancePath) {
+        snackbarText.value = `${t('gameServer.connected')}: ${server.name} (${host})`
+        snackbar.value = true
+        console.log('[GameServer] Modpack installed, instance:', instancePath)
+      } else {
+        throw new Error('Failed to install modpack')
+      }
     } else {
-      // 不存在，创建新实例
+      // 不存在且没有整合包，创建新实例
+      const runtimeConfig: any = {
+        minecraft: server.version,
+      }
+      
       instancePath = await createInstance({
         name: serverInstanceId,
         server: {
@@ -351,24 +356,24 @@ async function onConnectClick(region: GameRegion, server: GameServer) {
         name: server.name,
       })
       console.log('[GameServer] Created new instance:', instancePath)
-    }
-    
-    // 切换到该实例
-    selectedInstance.value = instancePath
-    
-    snackbarText.value = `${t('gameServer.connected')}: ${server.name} (${host})`
-    snackbar.value = true
-    
-    console.log('[GameServer] Connected to server:', host, 'Version:', server.version)
+      
+      // 切换到该实例
+      selectedInstance.value = instancePath
+      
+      snackbarText.value = `${t('gameServer.connected')}: ${server.name} (${host})`
+      snackbar.value = true
+      
+      console.log('[GameServer] Connected to server:', host, 'Version:', server.version)
 
-    // 如果服务器有模组，自动调用安装接口（下载进度会在任务管理器中显示）
-    if (server.modrinthProjects) {
-      await nextTick()
-      installServerMods(server, server.version)
-    }
+      // 如果服务器有模组，自动调用安装接口（下载进度会在任务管理器中显示）
+      if (server.modrinthProjects) {
+        await nextTick()
+        installServerMods(server, server.version)
+      }
 
-    // 跳转到主页
-    router.push('/')
+      // 跳转到主页
+      router.push('/')
+    }
   } catch (e) {
     console.error('Failed to connect to server:', e)
     error.value = e as Error

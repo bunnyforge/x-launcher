@@ -1,5 +1,5 @@
 import { clientModrinthV2 } from '@/util/clients'
-import { GameServer, InstanceModsServiceKey, InstanceServiceKey, MarketType, ModpackServiceKey, VersionServiceKey } from '@xmcl/runtime-api'
+import { GameServer, InstanceInstallServiceKey, InstanceModsServiceKey, InstanceServiceKey, MarketType, ModpackServiceKey, VersionServiceKey, waitModpackFiles } from '@xmcl/runtime-api'
 import { Ref } from 'vue'
 import { useService } from './service'
 import { kInstances } from './instances'
@@ -67,9 +67,10 @@ export function parseModrinthModpackUrl(url: string | null): { slug: string; ver
 
 export function useGameServerModsInstaller(instancePath: Ref<string>) {
   const { installFromMarket } = useService(InstanceModsServiceKey)
-  const { importModpack, installModapckFromMarket } = useService(ModpackServiceKey)
+  const { openModpack, installModapckFromMarket } = useService(ModpackServiceKey)
+  const { installInstanceFiles } = useService(InstanceInstallServiceKey)
   const { resolveLocalVersion } = useService(VersionServiceKey)
-  const { editInstance } = useService(InstanceServiceKey)
+  const { createInstance, editInstance } = useService(InstanceServiceKey)
   const { selectedInstance } = injection(kInstances)
   const { getInstanceLock, getInstallInstruction, handleInstallInstruction } = injection(kInstanceVersionInstall)
   const { all: allJava } = injection(kJavaContext)
@@ -212,12 +213,16 @@ export function useGameServerModsInstaller(instancePath: Ref<string>) {
   /**
    * Install modpack from modrinth URL and return the created instance path
    * @param modpackUrl The modrinth modpack URL or slug
+   * @param instanceName The name for the instance (used as folder name)
+   * @param serverName Display name for the server
    * @param serverHost Optional server host to set for the instance
    * @param serverPort Optional server port to set for the instance
    * @returns The created instance path, or null if failed
    */
   async function installServerModpack(
     modpackUrl: string | null,
+    instanceName: string,
+    serverName: string,
     serverHost?: string,
     serverPort?: number
   ): Promise<string | null> {
@@ -227,7 +232,7 @@ export function useGameServerModsInstaller(instancePath: Ref<string>) {
       return null
     }
 
-    console.log('[GameServerModpack] Installing modpack:', parsed.slug, 'version:', parsed.versionNumber)
+    console.log('[GameServerModpack] Installing modpack:', parsed.slug, 'version:', parsed.versionNumber, 'instanceName:', instanceName)
 
     try {
       // Get project info
@@ -263,6 +268,11 @@ export function useGameServerModsInstaller(instancePath: Ref<string>) {
         version: { versionId: targetVersion.id, icon: project.icon_url },
       })
 
+      // Open modpack to get config and files
+      const modpackState = await openModpack(modpackFile)
+      const files = await waitModpackFiles(modpackState)
+      const config = modpackState.config
+
       // Build upstream info
       const upstream: InstanceData['upstream'] = {
         type: 'modrinth-modpack',
@@ -270,22 +280,37 @@ export function useGameServerModsInstaller(instancePath: Ref<string>) {
         versionId: targetVersion.id,
       }
 
-      // Import modpack and create instance
-      const { instancePath, version, runtime } = await importModpack(
-        modpackFile,
-        project.icon_url,
-        upstream
-      )
+      // Check if files have shaderpacks or resourcepacks
+      const hasShaderpacks = files.some(f => f.path.startsWith('shaderpacks/'))
+      const hasResourcepacks = files.some(f => f.path.startsWith('resourcepacks/'))
+
+      // Create instance with our custom name (folder name = instanceName)
+      const instancePath = await createInstance({
+        name: instanceName,  // This will be used as folder name
+        runtime: config.runtime,
+        icon: project.icon_url,
+        upstream,
+        server: serverHost && serverPort ? { host: serverHost, port: serverPort } : undefined,
+        shaderpacks: hasShaderpacks,
+        resourcepacks: hasResourcepacks,
+      })
 
       console.log('[GameServerModpack] Created instance:', instancePath)
 
-      // Set server info if provided
-      if (serverHost && serverPort) {
-        await editInstance({
-          instancePath,
-          server: { host: serverHost, port: serverPort },
-        })
-      }
+      // Update display name to server name
+      await editInstance({
+        instancePath,
+        name: serverName,
+      })
+
+      // Install modpack files to the instance
+      installInstanceFiles({
+        path: instancePath,
+        files,
+        upstream,
+      }).catch((e) => {
+        console.error('[GameServerModpack] Failed to install instance files:', e)
+      })
 
       // Select the new instance
       selectedInstance.value = instancePath
@@ -298,8 +323,8 @@ export function useGameServerModsInstaller(instancePath: Ref<string>) {
       // Install version dependencies (like modpackInstaller does)
       const lock = getInstanceLock(instancePath)
       lock.runExclusive(async () => {
-        const resolved = version ? await resolveLocalVersion(version) : undefined
-        const instruction = await getInstallInstruction(instancePath, runtime, '', resolved, allJava.value)
+        const resolved = config.version ? await resolveLocalVersion(config.version) : undefined
+        const instruction = await getInstallInstruction(instancePath, config.runtime, '', resolved, allJava.value)
         await handleInstallInstruction(instruction)
       })
 

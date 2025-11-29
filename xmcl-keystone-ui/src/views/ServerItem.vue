@@ -7,78 +7,97 @@
   >
     <div class="flex h-full flex-col p-4">
       <!-- Header: Status & Name -->
-      <div class="mb-3 flex items-start justify-between">
-        <div class="flex items-center gap-3 overflow-hidden">
-          <div class="relative">
+      <div class="mb-3 flex flex-col gap-2">
+        <!-- Top row: Avatar, Name, Status -->
+        <div class="flex items-center gap-3">
+          <div class="relative flex-shrink-0">
             <v-avatar
-              size="48"
+              size="40"
               :class="statusClass"
               class="transition-all duration-300"
             >
-              <v-icon
-                large
-                color="white"
-              >
+              <v-icon color="white">
                 {{ statusIcon }}
               </v-icon>
             </v-avatar>
             <div
-              class="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white"
+              class="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white"
               :class="statusIndicatorClass"
             />
           </div>
           
-          <div class="flex min-w-0 flex-col">
-            <div class="flex items-center gap-2">
-              <span class="truncate text-lg font-bold leading-tight">
-                {{ server.name }}
-              </span>
-              <v-chip
-                x-small
-                label
-                outlined
-                class="flex-shrink-0 font-mono"
-              >
-                {{ server.version }}
-              </v-chip>
-              <v-chip
-                x-small
-                label
-                color="primary"
-                outlined
-                class="flex-shrink-0 font-mono"
-              >
-                {{ server.serverType }}
-              </v-chip>
-            </div>
-            
-            <div class="flex items-center gap-1 text-sm text-gray-500">
-              <v-btn
-                text
-                x-small
-                class="px-1"
-                @click.stop="copyAddress"
-              >
-                <v-icon
-                  x-small
-                  left
-                >
-                  content_copy
-                </v-icon>
-                {{ t('copyAddress') }}
-              </v-btn>
-            </div>
-          </div>
+          <span class="min-w-0 flex-1 truncate text-base font-bold leading-tight">
+            {{ server.name }}
+          </span>
+
+          <v-chip
+            x-small
+            :color="statusColor"
+            text-color="white"
+            class="flex-shrink-0 font-bold"
+          >
+            {{ server.status }}
+          </v-chip>
         </div>
 
-        <v-chip
-          small
-          :color="statusColor"
-          text-color="white"
-          class="flex-shrink-0 font-bold shadow-sm"
+        <!-- Second row: Version, Type -->
+        <div class="flex flex-wrap items-center gap-2 pl-[52px]">
+          <v-chip
+            x-small
+            label
+            outlined
+            class="font-mono"
+          >
+            {{ server.version }}
+          </v-chip>
+          <v-chip
+            x-small
+            label
+            color="primary"
+            outlined
+            class="font-mono"
+          >
+            {{ server.serverType }}
+          </v-chip>
+        </div>
+
+        <!-- Modpack or Mods info -->
+        <div
+          v-if="modpackName || modsCount > 0"
+          class="flex flex-wrap items-center gap-2 pl-[52px]"
         >
-          {{ server.status }}
-        </v-chip>
+          <v-chip
+            v-if="modpackName"
+            x-small
+            label
+            color="deep-purple"
+            outlined
+            class="max-w-full"
+          >
+            <v-icon
+              x-small
+              left
+            >
+              inventory_2
+            </v-icon>
+            <span class="truncate">{{ modpackName }}</span>
+          </v-chip>
+          <v-chip
+            v-else-if="modsCount > 0"
+            x-small
+            label
+            color="teal"
+            outlined
+          >
+            <v-icon
+              x-small
+              left
+            >
+              extension
+            </v-icon>
+            {{ modsCount }} {{ t('mod.name', modsCount) }}
+          </v-chip>
+        </div>
       </div>
 
       <v-divider class="mb-3" />
@@ -172,10 +191,6 @@ const props = defineProps<{
 const emit = defineEmits(['click', 'connect'])
 const { t } = useI18n()
 
-const serverHost = computed(() => {
-  return `${props.region.domain}:${props.server.nodePort}`
-})
-
 const statusColor = computed(() => {
   return props.server.status === 'RUNNING' ? 'success' : 'error'
 })
@@ -190,6 +205,36 @@ const statusIndicatorClass = computed(() => {
 
 const statusIcon = computed(() => {
   return props.server.status === 'RUNNING' ? 'dns' : 'dns'
+})
+
+// Modpack name extracted from URL
+const modpackName = computed(() => {
+  const url = props.server.modrinthModpack
+  if (!url) return null
+  try {
+    const parsed = new URL(url)
+    if (parsed.hostname === 'modrinth.com') {
+      const pathParts = parsed.pathname.split('/').filter(Boolean)
+      if (pathParts[0] === 'modpack' && pathParts[1]) {
+        // Convert slug to readable name
+        return pathParts[1].split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+      }
+    }
+  } catch {
+    // Not a URL, might be slug
+    if (url.includes(':')) {
+      return url.split(':')[0].split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+    }
+    return url.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+  }
+  return null
+})
+
+// Count of mods from modrinthProjects
+const modsCount = computed(() => {
+  const projects = props.server.modrinthProjects
+  if (!projects) return 0
+  return projects.split(',').filter((p: string) => p.trim()).length
 })
 
 const playerPercentage = computed(() => {
@@ -207,10 +252,6 @@ function getUsageColor(percentage: number) {
   if (percentage >= 80) return 'error'
   if (percentage >= 60) return 'warning'
   return 'success'
-}
-
-function copyAddress() {
-  navigator.clipboard.writeText(serverHost.value)
 }
 </script>
 
